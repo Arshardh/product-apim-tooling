@@ -1,0 +1,7 @@
+req_count,mean_response_code,unique_access_token,unique_ip_address,invoke_path_max_len,unique_invoke_path,unique_cookie,unique_user_agent,data_bytes,get_count,post_count,delete_count
+44,200,31,31,15,8,31,11,374,36,2,6
+244,200,31,31,15,8,31,11,374,36,2,6
+44,400,31,31,15,8,31,11,374,36,2,6
+44,200,31,31,15,8,31,11,37400,36,2,6
+544,200,31,31,15,8,31,11,37400,36,2,506
+44,200,1,31,15,8,31,11,374,36,2,6

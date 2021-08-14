@@ -8,7 +8,7 @@ api:
 # common definitions for applications which will be created by the scenario
 application:
   throttling_tier: Unlimited
-  token_validity_period: -1
+  token_validity_period: 360000
 
 # subscription tier to be used when subscribing APIs
 subscription_tier: Unlimited
@@ -16,7 +16,7 @@ subscription_tier: Unlimited
 # details for all hosted APIs. Traffic tool will invoke according to these configurations
 api_host:
   protocol: https
-  ip: localhost
+  ip: 127.0.0.1
   port: 8243
 
 # configurations for the traffic tool processes

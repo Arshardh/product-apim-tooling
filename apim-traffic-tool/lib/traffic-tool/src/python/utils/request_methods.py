@@ -576,6 +576,7 @@ def generateInvokeToken(gateway_protocol, gateway_host, gateway_port, endpoint, 
         response = requests.post(url=url, headers=headers, data=data, verify=False)
         code = response.status_code
         res_txt = response.text
+        util_methods.log('traffic-tool.log', "URL", res_txt)
         response = json.loads(res_txt)
 
         expires_in = response['expires_in']

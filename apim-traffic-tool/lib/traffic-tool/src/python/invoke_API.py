@@ -45,7 +45,9 @@ post_data = []
 delete_data = []
 time_patterns = None
 
+
 script_start_time = None
+is_set = False
 scenario_pool = {}
 connection_refuse_count = Value('i', 0)
 process_pool = []
@@ -93,7 +95,7 @@ def process_time_patterns(patterns: dict) -> defaultdict:
     return processed_patterns
 
 
-def sendRequest(url_protocol, url_ip, url_port, path, access_token, method, user_ip, cookie, user_agent):
+def sendRequest(url_protocol, url_ip, url_port, path, access_token, method, user_ip, cookie, user_agent, filename, post_data, delete_data, buffering):
     """
     This function will send http requests to the given address
     :param url_protocol: Protocol of the URL
@@ -107,9 +109,10 @@ def sendRequest(url_protocol, url_ip, url_port, path, access_token, method, user
     :param user_agent: User agent for the user
     :return: Response code and response text
     """
-    global post_data, delete_data
-
     url = "{}://{}:{}/{}".format(url_protocol, url_ip, url_port, path)
+    # util_methods.log('traffic-tool.log', 'INFO', "predebuggggg")
+    # util_methods.log('traffic-tool.log', 'INFO', path)
+
     accept = 'application/json'
     content_type = 'application/json'
     headers = {
@@ -122,6 +125,7 @@ def sendRequest(url_protocol, url_ip, url_port, path, access_token, method, user
         'User-Agent': '{}'.format(user_agent)
     }
     res_txt = ""
+    data_bytes = 0
 
     try:
         if method == "GET":
@@ -130,22 +134,21 @@ def sendRequest(url_protocol, url_ip, url_port, path, access_token, method, user
             res_txt = response.text
 
         elif method == "POST":
+            # util_methods.log('traffic-tool.log', 'INFO', "predebuggggg1")
             data = json.dumps(random.choice(post_data))
+            data_bytes = utf8len(data)
+            # util_methods.log('traffic-tool.log', 'INFO', "debuggggg")
             response = requests.post(url=url, headers=headers, data=data, verify=False)
             code = response.status_code
             res_txt = response.text
 
         elif method == "DELETE":
-            if delete_data is not None:
-                data = json.dumps(random.choice(delete_data))
-                response = requests.delete(url=url, headers=headers, data=data, verify=False)
-                code = response.status_code
-                res_txt = response.text
-            else:
-                url = url + '/' + str(random.randint(0, 1000))
-                response = requests.delete(url=url, headers=headers, verify=False)
-                code = response.status_code
-                res_txt = response.text
+            url = url + '/' + str(random.randint(0, 1000))
+            util_methods.log('traffic-tool.log', 'INFO', "predebuggggg2")
+            util_methods.log('traffic-tool.log', 'INFO', url)
+            response = requests.delete(url=url, headers=headers, verify=False)
+            code = response.status_code
+            res_txt = response.text
 
         elif method == "PUT":
             response = requests.put(url=url, headers=headers, verify=False)
@@ -170,15 +173,17 @@ def sendRequest(url_protocol, url_ip, url_port, path, access_token, method, user
     # user agent is wrapped around quotes because there are commas in the user agent and they clash with the commas in csv file
     write_string = str(
         datetime.now()) + "," + user_ip + "," + access_token + "," + method + "," + path + "," + cookie + "," + accept + "," + content_type + "," + user_ip + ",\"" + user_agent + "\"," + str(
-        code) + "\n"
+        code)+ "," + str(data_bytes) + "\n"
 
     with open(abs_path + '/../../../../dataset/traffic/{}'.format(filename), 'a+') as dataset_file:
         dataset_file.write(write_string)
 
     return code, res_txt
 
+def utf8len(s):
+    return len(s.encode('utf-8'))
 
-def runInvoker(user_scenario, connection_refuse_count):
+def runInvoker(user_scenario, connection_refuse_count, script_start_time, script_runtime, time_patterns, filename, host_protocol, host_ip, host_port, post_data, delete_data):
     """
     This function will take a given invoke scenario and execute it.
     Supposed to be executed from a process.
@@ -186,10 +191,13 @@ def runInvoker(user_scenario, connection_refuse_count):
     :param connection_refuse_count: Current connection refuse count
     :return: None
     """
-    global script_start_time, script_runtime
 
     appNames = list(user_scenario.keys())
 
+    buffering = 0
+
+    buffering+=1
+    # util_methods.log('traffic-tool.log', 'INFO', str(buffering))
     while True:
         app_name = appNames[random.randint(0, len(appNames) - 1)]
         app_scenario_list = user_scenario.get(app_name)
@@ -242,7 +250,7 @@ def runInvoker(user_scenario, connection_refuse_count):
                 if heavy_traffic != 'true':
                     sleep_time = np.absolute(np.random.normal(time_pattern['mean'], time_pattern['std']))
                     time.sleep(sleep_time)
-                res_code = sendRequest(host_protocol, host_ip, host_port, path, access_token, method, user_ip, cookie, user_agent)[0]
+                res_code = sendRequest(host_protocol, host_ip, host_port, path, access_token, method, user_ip, cookie, user_agent, filename, post_data, delete_data, buffering)[0]
                 if res_code == '521':
                     connection_refuse_count.value += 1
 
@@ -271,6 +279,14 @@ if __name__ == "__main__":
     filename = args.filename + ".csv"
     script_runtime = args.runtime * 60  # in seconds
 
+
+    # record script start_time
+    if (is_set == False):
+        util_methods.log('traffic-tool.log', 'INFO', "set timeeeee")
+        script_start_time = datetime.now()
+        is_set = True
+        util_methods.log('traffic-tool.log', 'INFO', str(script_start_time))
+
     # load and set tool configurations
     try:
         loadConfig()
@@ -282,7 +298,7 @@ if __name__ == "__main__":
         sys.exit()
 
     with open(abs_path + '/../../../../dataset/traffic/{}'.format(filename), 'w') as file:
-        file.write("timestamp,ip_address,access_token,http_method,invoke_path,cookie,accept,content_type,x_forwarded_for,user_agent,response_code\n")
+        file.write("timestamp,ip_address,access_token,http_method,invoke_path,cookie,accept,content_type,x_forwarded_for,user_agent,response_code,data_bytes\n")
 
     try:
         # load and set the scenario pool
@@ -291,14 +307,11 @@ if __name__ == "__main__":
         logger.exception(str(e))
         sys.exit()
 
-    # record script start_time
-    script_start_time = datetime.now()
-
     processes_list = []
 
     # create and start a process for each user
     for scenario in scenario_pool.values():
-        process = Process(target=runInvoker, args=(scenario, connection_refuse_count))
+        process = Process(target=runInvoker, args=(scenario, connection_refuse_count, script_start_time, script_runtime, time_patterns, filename, host_protocol, host_ip, host_port, post_data, delete_data))
         process.daemon = False
         processes_list.append(process)
         process.start()
