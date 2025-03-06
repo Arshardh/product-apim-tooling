@@ -685,3 +685,47 @@ def removeUserSOAP(gateway_protocol, gateway_host, gateway_port, soap_endpoint, 
         log_txt = "removeUserSOAP(). responseCode: " + str(code) + ", errorLog: " + str(err) + ", method: POST" + ", url: " + url + ", body: " + str(data)
         util_methods.log('traffic-requests.log', "ERROR", log_txt)
         return False
+
+def generateAIToken(token_endpont, b64_key_secret):
+    """
+    This function will generate API invoke tokens using the Client Credentials Grant Type.
+    :param gateway_protocol: Running protocol of the gateway
+    :param gateway_host: Host IP address of the gateway
+    :param gateway_port: Port
+    :param endpoint: Endpoint
+    :param b64_key_secret: Base64 encrypted value of client_id:client_secret
+    :return: Access token (refresh token is not returned in Client Credentials Grant Type)
+    """
+
+    headers = {
+        "Authorization": "Basic {}".format(b64_key_secret),
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    data = {
+        "grant_type": "client_credentials"
+    }
+
+    try:
+        response = requests.post(url=token_endpont, headers=headers, data=data, verify=False)
+        code = response.status_code
+        res_txt = response.text
+        response = json.loads(res_txt)
+
+        expires_in = response.get('expires_in', 0)
+        if int(expires_in) <= 4800:
+            util_methods.log('traffic-tool.log', "WARN", "Your token expiration time is {}. It is recommended to increase expiration time to prevent unnecessary token expirations!".format(str(expires_in)))
+
+        log_txt = "generateInvokeToken(). responseCode: " + str(code) + ", responseMessage: " + str(res_txt) + ", method: POST" + ", url: " + token_endpont
+
+        if code == 200:
+            util_methods.log('traffic-requests.log', "SUCCESS", log_txt)
+            return response['access_token']  # Client Credentials Grant Type does not return a refresh token
+        else:
+            util_methods.log('traffic-requests.log', "FAILED", log_txt)
+            return None
+
+    except Exception as err:
+        code = 521
+        util_methods.log_txt = "generateInvokeToken(). responseCode: " + str(code) + ", errorLog: " + str(err) + ", method: POST" + ", url: " + token_endpont + ", body: " + str(data)
+        util_methods.log('traffic-requests.log', "ERROR", log_txt)
+        return None
